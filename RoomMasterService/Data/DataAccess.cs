@@ -1,6 +1,7 @@
 using MySql.Data.MySqlClient;
 using Dapper;
 using RoomMasterService.Models;
+using RoomMasterService.DTOs;
 
 namespace RoomMasterService.Data;
 
@@ -50,13 +51,13 @@ public class DataAccess : IDataAccess
         using (var connection = GetConnection())
         {
             var parameters = new DynamicParameters();
-            parameters.Add("@p_full_name", guest.FullName);
+            parameters.Add("@p_full_name", guest.Full_Name);
             parameters.Add("@p_email", guest.Email);
             parameters.Add("@p_phone", guest.Phone);
             parameters.Add("@p_id_type", guest.IdType);
             parameters.Add("@p_id_number", guest.IdNumber);
             parameters.Add("@p_nationality", guest.Nationality);
-            parameters.Add("@p_date_of_birth", guest.DateOfBirth);
+            parameters.Add("@p_date_of_birth", guest.Date_Of_Birth);
             parameters.Add("@p_guest_id", dbType: System.Data.DbType.String, size: 36, direction: System.Data.ParameterDirection.Output);
 
             await connection.ExecuteAsync(
@@ -94,17 +95,26 @@ public class DataAccess : IDataAccess
         }
     }
 
+    public async Task<List<Room>> GetAllRoomsAsync()
+    {
+        using (var connection = GetConnection())
+        {
+            var rooms = await connection.QueryAsync<Room>("SELECT * FROM rooms");
+            return rooms.ToList();
+        }
+    }
+
     public async Task<string> CreateRoomAsync(Room room)
     {
         using (var connection = GetConnection())
         {
             var parameters = new DynamicParameters();
-            parameters.Add("@p_room_number", room.RoomNumber);
-            parameters.Add("@p_room_type_id", room.RoomTypeId);
+            parameters.Add("@p_room_number", room.Room_Number);
+            parameters.Add("@p_room_type_id", room.Room_Type_Id);
             parameters.Add("@p_floor", room.Floor);
             parameters.Add("@p_capacity", room.Capacity);
             parameters.Add("@p_status", room.Status);
-            parameters.Add("@p_price_per_night", room.PricePerNight);
+            parameters.Add("@p_price_per_night", room.Price_Per_Night);
             parameters.Add("@p_features", room.Features);
             parameters.Add("@p_room_id", dbType: System.Data.DbType.String, size: 36, direction: System.Data.ParameterDirection.Output);
 
@@ -179,16 +189,28 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public async Task UpdateBookingAsync(string bookingId, DateTime checkInDate, DateTime checkOutDate)
+    public async Task<int> UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
     {
+        int rows = 0;
         using (var connection = GetConnection())
         {
-            await connection.ExecuteAsync(
-                "uspUpdateBooking",
-                new { p_booking_id = bookingId, p_check_in_date = checkInDate, p_check_out_date = checkOutDate },
+            rows = await connection.ExecuteAsync(
+                "uspUpdateBookingFully", new
+                {
+                    p_booking_id = bookingId,
+                    p_guest_id = request.Guest_Id,
+                    p_room_id = request.Room_Id,
+                    p_check_in_date = request.Check_In_Date,
+                    p_check_out_date = request.Check_Out_Date,
+                    p_special_requests = request.Special_Requests,
+                    p_deposit_paid = request.Deposit_Paid,
+                    p_total_price = request.Total_Price,
+                    p_status = request.Status
+                },
                 commandType: System.Data.CommandType.StoredProcedure
             );
         }
+        return rows;
     }
 
     public async Task CancelBookingAsync(string bookingId)
@@ -272,4 +294,6 @@ public class DataAccess : IDataAccess
             return report;
         }
     }
+
+   
 }

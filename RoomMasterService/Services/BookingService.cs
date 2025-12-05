@@ -31,7 +31,10 @@ public class BookingService : IBookingService
 
     public async Task UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
     {
-        await _dataAccess.UpdateBookingAsync(bookingId, request.CheckInDate, request.CheckOutDate);
+        var affected = await _dataAccess.UpdateBookingAsync(bookingId, request);
+
+        if (affected == 0)
+            throw new Exception("Booking not found or no fields changed.");
     }
 
     public async Task CancelBookingAsync(string bookingId)

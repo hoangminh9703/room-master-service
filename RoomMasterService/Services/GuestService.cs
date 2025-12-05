@@ -27,13 +27,13 @@ public class GuestService : IGuestService
     {
         var guest = new Guest
         {
-            FullName = request.FullName,
+            Full_Name = request.FullName,
             Email = request.Email,
             Phone = request.Phone,
             IdType = request.IdType,
             IdNumber = request.IdNumber,
             Nationality = request.Nationality,
-            DateOfBirth = request.DateOfBirth
+            Date_Of_Birth = request.DateOfBirth
         };
 
         return await _dataAccess.CreateGuestAsync(guest);

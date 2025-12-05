@@ -35,8 +35,8 @@ public class GuestsController : ControllerBase
         }
     }
 
-    [HttpGet("search/{keyword}")]
-    public async Task<ActionResult<ApiResponse<object>>> SearchGuest(string keyword)
+    [HttpGet("search")]
+    public async Task<ActionResult<ApiResponse<object>>> SearchGuest([FromQuery] string? keyword)
     {
         try
         {
@@ -49,6 +49,7 @@ public class GuestsController : ControllerBase
             return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
         }
     }
+   
 
     [HttpPost]
     public async Task<ActionResult<ApiResponse<object>>> CreateGuest([FromBody] CreateGuestRequest request)

@@ -1,3 +1,4 @@
+using RoomMasterService.DTOs;
 using RoomMasterService.Models;
 
 namespace RoomMasterService.Data;
@@ -10,13 +11,14 @@ public interface IDataAccess
     Task UpdateGuestAsync(string guestId, string fullName, string? email, string phone);
 
     Task<Room?> GetRoomByIdAsync(string roomId);
+    Task<List<Room>> GetAllRoomsAsync();
     Task<string> CreateRoomAsync(Room room);
     Task UpdateRoomStatusAsync(string roomId, string status);
     Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate, string? roomTypeId);
 
     Task<Booking?> GetBookingByIdAsync(string bookingId);
     Task<(string bookingId, string bookingReference)> CreateBookingAsync(string guestId, string roomId, DateTime checkInDate, DateTime checkOutDate, string? specialRequests);
-    Task UpdateBookingAsync(string bookingId, DateTime checkInDate, DateTime checkOutDate);
+    Task<int> UpdateBookingAsync(string bookingId, UpdateBookingRequest request);
     Task CancelBookingAsync(string bookingId);
     Task<List<Booking>> GetBookingsByGuestAsync(string guestId);
     Task<List<Booking>> GetBookingsByDateRangeAsync(DateTime startDate, DateTime endDate);

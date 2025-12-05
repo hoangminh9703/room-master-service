@@ -18,6 +18,21 @@ public class RoomsController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<object>>> GetAllRooms()
+    {
+        try
+        {
+            var rooms = await _roomService.GetAllRoomsAsync();
+            return Ok(new ApiResponse<object> { Success = true, Data = rooms });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all rooms");
+            return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
+        }
+    }
+
     [HttpGet("{roomId}")]
     public async Task<ActionResult<ApiResponse<object>>> GetRoom(string roomId)
     {
