@@ -1,322 +1,110 @@
-# RoomMasterService - Hotel Management API
+# Room Master Service
 
-A comprehensive .NET Web API for hotel front-desk operations, including guest management, booking system, room management, check-in/check-out, and reporting.
+Ứng dụng Room Master Service là một REST API quản lý hoạt động lễ tân khách sạn (quản lý khách, phòng, đặt phòng, check-in/check-out, báo cáo) viết bằng .NET 8 và Dapper.
 
-## Prerequisites
+## Tổng quan
+- Ngôn ngữ: C# (.NET 8)
+- Kiến trúc: ASP.NET Core Web API
+- DB: MySQL (sử dụng `MySql.Data` + `Dapper`)
+- Xác thực: JWT (Bearer)
+- Tài liệu API: Swagger
 
-- .NET 8.0 SDK or later
-- MySQL Server 8.0+
-- Visual Studio 2022 or VS Code
+## Yêu cầu
+- .NET 8 SDK
+- MySQL Server 8+
+- (Tùy chọn) Visual Studio 2022 hoặc VS Code
 
-## Setup Instructions
+## Cấu hình
+1. Cài đặt chuỗi kết nối MySQL
+   - Mở `RoomMasterService/appsettings.Development.json` hoặc `appsettings.json` và chỉnh `ConnectionStrings:DefaultConnection`:
 
-### 1. Database Setup
-
-1. Create the MySQL database using the schema file:
-```bash
-mysql -u root -p < db-room-master.sql
-```
-
-2. Create the stored procedures:
-```bash
-mysql -u root -p HotelDesk < sp-room-master.sql
-```
-
-### 2. Configuration
-
-Update the connection string in `appsettings.json`:
 ```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Port=3306;Database=HotelDesk;Uid=root;Pwd=your_password;"
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Port=3306;Database=hoteldesk;Uid=root;Pwd=your_password;"
+  }
 }
 ```
 
-### 3. Run the Application
+2. Cấu hình JWT key
+   - Thêm giá trị `Jwt:Key` trong `appsettings.Development.json` hoặc dùng biến môi trường `Jwt__Key`.
+   - Ví dụ `appsettings.Development.json`:
 
-```bash
+```json
+{
+  "Jwt": {
+    "Key": "<your_base64_or_secret_here>"
+  }
+}
+```
+
+3. Tạo key an toàn (khuyến nghị 32 byte trở lên)
+   - PowerShell:
+
+```
+$bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Convert]::ToBase64String($bytes)
+```
+
+   - Linux / macOS:
+
+```
+openssl rand -base64 32
+```
+
+   - Lưu ý: Không commit key thật lên Git. Dùng `dotnet user-secrets` cho môi trường dev hoặc biến môi trường/Key Vault cho production.
+
+## Cài đặt & chạy
+Từ thư mục gốc của repo:
+
+```
 cd RoomMasterService
 dotnet restore
 dotnet build
 dotnet run
 ```
 
-The API will be available at `https://localhost:5001` and `http://localhost:5000`
+- Ứng dụng chạy ở URL theo `Properties/launchSettings.json` (ví dụ `https://localhost:63887`).
+- Swagger UI có sẵn khi môi trường là `Development` tại `/swagger`.
 
-Swagger documentation will be available at `http://localhost:5000/swagger`
+## Endpoints chính (tóm tắt)
+- Auth / Tài khoản: `POST /api/accounts/login`, `POST /api/accounts/refresh`
+- Guests: `GET/POST/PUT /api/guests`
+- Rooms: `GET/POST/PUT /api/rooms`, `POST /api/rooms/available`
+- Bookings: `GET/POST/PUT /api/bookings`, `POST /api/bookings/{id}/cancel`
+- Check-in/out: `POST /api/checkinout/check-in`, `POST /api/checkinout/check-out`
 
-## API Endpoints
 
-### Guest Management
+(Chi tiết payload và route đầy đủ xem trực tiếp trong controllers hoặc Swagger.)
 
-#### Get Guest by ID
-```
-GET /api/guests/{guestId}
-Response: { success: boolean, data: Guest }
-```
+## Cấu trúc dự án (tóm tắt)
+- `Controllers/` — endpoint API
+- `Services/` — logic nghiệp vụ
+- `Data/` — access DB (Dapper + stored procedures)
+- `Models/`, `DTOs/` — mô hình dữ liệu và DTOs
+- `Program.cs` — cấu hình app, authentication, CORS, Swagger
 
-#### Search Guests
-```
-GET /api/guests/search/{keyword}
-Response: { success: boolean, data: Guest[] }
-```
+## Ghi chú bảo mật & vận hành
+- Không commit `Jwt:Key` vào kho mã nguồn công khai.
+- Dùng HTTPS trong môi trường production.
+- Thay đổi cấu hình CORS theo nhu cầu thực tế.
 
-#### Create Guest
-```
-POST /api/guests
-Body: {
-  "fullName": "string",
-  "email": "string",
-  "phone": "string",
-  "idType": "Passport|ID_Card|Driver_License",
-  "idNumber": "string",
-  "nationality": "string",
-  "dateOfBirth": "date"
-}
-Response: { success: boolean, message: string, data: { guestId: string } }
-```
-
-#### Update Guest
-```
-PUT /api/guests/{guestId}
-Body: {
-  "fullName": "string",
-  "email": "string",
-  "phone": "string"
-}
-Response: { success: boolean, message: string }
-```
-
-### Booking Management
-
-#### Get Booking by ID
-```
-GET /api/bookings/{bookingId}
-Response: { success: boolean, data: Booking }
-```
-
-#### Get Guest Bookings
-```
-GET /api/bookings/guest/{guestId}
-Response: { success: boolean, data: Booking[] }
-```
-
-#### Get Bookings by Date Range
-```
-POST /api/bookings/date-range
-Body: {
-  "startDate": "date",
-  "endDate": "date"
-}
-Response: { success: boolean, data: Booking[] }
-```
-
-#### Create Booking
-```
-POST /api/bookings
-Body: {
-  "guestId": "string",
-  "roomId": "string",
-  "checkInDate": "date",
-  "checkOutDate": "date",
-  "specialRequests": "string"
-}
-Response: { success: boolean, message: string, data: { bookingId: string, bookingReference: string } }
-```
-
-#### Update Booking
-```
-PUT /api/bookings/{bookingId}
-Body: {
-  "checkInDate": "date",
-  "checkOutDate": "date"
-}
-Response: { success: boolean, message: string }
-```
-
-#### Cancel Booking
-```
-POST /api/bookings/{bookingId}/cancel
-Response: { success: boolean, message: string }
-```
-
-### Room Management
-
-#### Get Room by ID
-```
-GET /api/rooms/{roomId}
-Response: { success: boolean, data: Room }
-```
-
-#### Get Available Rooms
-```
-POST /api/rooms/available
-Body: {
-  "checkInDate": "date",
-  "checkOutDate": "date",
-  "roomTypeId": "string" (optional)
-}
-Response: { success: boolean, data: Room[] }
-```
-
-#### Create Room
-```
-POST /api/rooms
-Body: {
-  "roomNumber": "string",
-  "roomTypeId": "string",
-  "floor": int,
-  "capacity": int,
-  "status": "Available|Occupied|Cleaning|Maintenance",
-  "pricePerNight": decimal,
-  "features": "json"
-}
-Response: { success: boolean, message: string, data: { roomId: string } }
-```
-
-#### Update Room Status
-```
-PUT /api/rooms/{roomId}/status
-Body: {
-  "status": "Available|Occupied|Cleaning|Maintenance"
-}
-Response: { success: boolean, message: string }
-```
-
-### Check-in/Check-out
-
-#### Check-in Guest
-```
-POST /api/checkinout/check-in
-Body: {
-  "bookingId": "string",
-  "roomId": "string"
-}
-Response: { success: boolean, message: string }
-```
-
-#### Check-out Guest
-```
-POST /api/checkinout/check-out
-Body: {
-  "bookingId": "string",
-  "roomId": "string"
-}
-Response: { success: boolean, message: string }
-```
-
-### Dashboard & Reporting
-
-#### Get Occupancy Stats
-```
-GET /api/dashboard/occupancy-stats
-Response: { success: boolean, data: { totalRooms: int, availableRooms: int, occupiedRooms: int } }
-```
-
-#### Get Revenue Report
-```
-POST /api/dashboard/revenue-report
-Body: {
-  "startDate": "date",
-  "endDate": "date"
-}
-Response: { success: boolean, data: { totalRevenue: decimal, totalBookings: int } }
-```
-
-## Project Structure
+## Mẹo phát triển
+- Dùng `dotnet user-secrets` để lưu `Jwt:Key` trong môi trường dev:
 
 ```
-RoomMasterService/
-├── Controllers/          # API endpoints
-│   ├── GuestsController.cs
-│   ├── BookingsController.cs
-│   ├── RoomsController.cs
-│   ├── CheckInOutController.cs
-│   └── DashboardController.cs
-├── Services/            # Business logic layer
-│   ├── IGuestService.cs & GuestService.cs
-│   ├── IBookingService.cs & BookingService.cs
-│   ├── IRoomService.cs & RoomService.cs
-│   ├── ICheckInOutService.cs & CheckInOutService.cs
-│   └── IDashboardService.cs & DashboardService.cs
-├── Data/               # Data access layer
-│   ├── IDataAccess.cs
-│   └── DataAccess.cs
-├── Models/             # Database models
-│   ├── User.cs
-│   ├── Guest.cs
-│   ├── Room.cs
-│   ├── RoomType.cs
-│   ├── Booking.cs
-│   ├── Transaction.cs
-│   ├── DamageReport.cs
-│   └── AuditLog.cs
-├── DTOs/              # Request/Response objects
-│   ├── CreateGuestRequest.cs
-│   ├── UpdateGuestRequest.cs
-│   ├── CreateBookingRequest.cs
-│   ├── UpdateBookingRequest.cs
-│   └── ApiResponse.cs
-├── Program.cs         # Application startup
-├── appsettings.json
-└── appsettings.Development.json
+cd RoomMasterService
+dotnet user-secrets init
+dotnet user-secrets set "Jwt:Key" "<your-secret>"
 ```
 
-## Key Features
+- Nếu gặp lỗi kiểu `Microsoft.AspNetCore.Authentication.JwtBearer` missing, chạy:
 
-✅ **Guest Management** - Create, update, and search guest profiles  
-✅ **Room Management** - Track room availability and status  
-✅ **Booking System** - Create, modify, and cancel bookings  
-✅ **Check-in/Check-out** - Automated guest workflows  
-✅ **Dashboard** - Real-time occupancy and revenue metrics  
-✅ **Stored Procedures** - All data operations use SQL stored procedures  
-✅ **Role-Based Access** - Support for Admin, Manager, Receptionist roles  
-✅ **CORS Support** - Cross-origin requests enabled  
-✅ **Swagger Documentation** - Interactive API documentation  
-
-## Technology Stack
-
-- **Framework**: ASP.NET Core 8.0
-- **ORM**: Dapper (for stored procedure calls)
-- **Database**: MySQL 8.0+
-- **Documentation**: Swagger/OpenAPI
-- **Logging**: Built-in ASP.NET Core logging
-
-## Error Handling
-
-All endpoints return standardized responses:
-
-**Success Response:**
-```json
-{
-  "success": true,
-  "message": "Operation successful",
-  "data": {}
-}
+```
+dotnet add RoomMasterService/RoomMasterService.csproj package Microsoft.AspNetCore.Authentication.JwtBearer
 ```
 
-**Error Response:**
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "errors": ["error1", "error2"]
-}
-```
+## Liên hệ & đóng góp
+- Mở issue hoặc pull request trên repo để báo lỗi hoặc đề xuất tính năng.
 
-## Notes
-
-- Connection strings must be updated in `appsettings.json` before running
-- All stored procedures are called via Dapper ORM
-- Database operations are fully asynchronous
-- CORS is enabled for development; configure appropriately for production
-- Password hashing should use bcrypt (currently placeholder in sample data)
-
-## Future Enhancements
-
-- Authentication and authorization (JWT)
-- Payment processing integration
-- Email notifications
-- SMS notifications
-- Advanced reporting and analytics
-- Multi-property support
-- Mobile app API
+---
+Cần bổ sung phần hướng dẫn chi tiết endpoint (Postman/Swagger collection) hoặc script tạo DB không?
