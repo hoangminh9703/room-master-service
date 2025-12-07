@@ -1,0 +1,12 @@
+using RoomMasterService.Models;
+
+namespace RoomMasterService.Services;
+
+public interface IRoomService
+{
+    Task<Room?> GetRoomByIdAsync(string roomId);
+    Task<List<Room>> GetAllRoomsAsync();
+    Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate);
+    Task<string> CreateRoomAsync(Room room);
+    Task UpdateRoomStatusAsync(string roomId, string status);
+}
