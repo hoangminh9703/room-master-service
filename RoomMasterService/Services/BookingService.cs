@@ -25,16 +25,17 @@ public class BookingService : IBookingService
             request.RoomId,
             request.CheckInDate,
             request.CheckOutDate,
-            request.SpecialRequests
+            request.SpecialRequests,
+            request.AccountId
         );
     }
 
-    public async Task UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
+    public async Task<UpdateBookingResult> UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
     {
-        var affected = await _dataAccess.UpdateBookingAsync(bookingId, request);
+        var result = await _dataAccess.UpdateBookingAsync(bookingId, request);
 
-        if (affected == 0)
-            throw new Exception("Booking not found or no fields changed.");
+        // Do not throw here; let controller handle different result codes
+        return result;
     }
 
     public async Task CancelBookingAsync(string bookingId)
@@ -50,5 +51,10 @@ public class BookingService : IBookingService
     public async Task<List<Booking>> GetBookingsByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         return await _dataAccess.GetBookingsByDateRangeAsync(startDate, endDate);
+    }
+
+    public async Task<(List<object> Bookings, int TotalRows)> SearchBookingsAsync(string? keyword, DateTime? date, int pageIndex, int pageSize, string? status, DateTime? fromDate, DateTime? toDate, DateTime? searchCheckInDate, DateTime? searchCheckOutDate, int? type)
+    {
+        return await _dataAccess.SearchBookingsAsync(keyword, date, pageIndex, pageSize, status, fromDate, toDate, searchCheckInDate, searchCheckOutDate, type);
     }
 }

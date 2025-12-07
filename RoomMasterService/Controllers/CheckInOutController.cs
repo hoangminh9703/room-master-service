@@ -22,8 +22,11 @@ public class CheckInOutController : ControllerBase
     {
         try
         {
-            await _checkInOutService.CheckInGuestAsync(request.BookingId, request.RoomId);
-            return Ok(new ApiResponse { Success = true, Message = "Guest checked in successfully" });
+            var rows = await _checkInOutService.BookingCheckInOutAsync(request.BookingId, 1);
+            if (rows > 0)
+                return Ok(new ApiResponse { Success = true, Message = "Guest checked in successfully" });
+
+            return BadRequest(new ApiResponse { Success = false, Message = "Check-in failed: booking not found or already checked-in" });
         }
         catch (Exception ex)
         {
@@ -37,8 +40,11 @@ public class CheckInOutController : ControllerBase
     {
         try
         {
-            await _checkInOutService.CheckOutGuestAsync(request.BookingId, request.RoomId);
-            return Ok(new ApiResponse { Success = true, Message = "Guest checked out successfully" });
+            var rows = await _checkInOutService.BookingCheckInOutAsync(request.BookingId, 2);
+            if (rows > 0)
+                return Ok(new ApiResponse { Success = true, Message = "Guest checked out successfully" });
+
+            return BadRequest(new ApiResponse { Success = false, Message = "Check-out failed: booking not found or already checked-out" });
         }
         catch (Exception ex)
         {
@@ -48,14 +54,4 @@ public class CheckInOutController : ControllerBase
     }
 }
 
-public class CheckInRequest
-{
-    public string BookingId { get; set; } = string.Empty;
-    public string RoomId { get; set; } = string.Empty;
-}
 
-public class CheckOutRequest
-{
-    public string BookingId { get; set; } = string.Empty;
-    public string RoomId { get; set; } = string.Empty;
-}

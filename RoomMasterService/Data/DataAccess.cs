@@ -140,13 +140,13 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public async Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate, string? roomTypeId)
+    public async Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate)
     {
         using (var connection = GetConnection())
         {
             var rooms = await connection.QueryAsync<Room>(
                 "uspGetAvailableRooms",
-                new { p_check_in_date = checkInDate, p_check_out_date = checkOutDate, p_room_type_id = roomTypeId },
+                new { p_check_in_date = checkInDate, p_check_out_date = checkOutDate},
                 commandType: System.Data.CommandType.StoredProcedure
             );
             return rooms.ToList();
@@ -166,7 +166,7 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public async Task<(string bookingId, string bookingReference)> CreateBookingAsync(string guestId, string roomId, DateTime checkInDate, DateTime checkOutDate, string? specialRequests)
+    public async Task<(string bookingId, string bookingReference)> CreateBookingAsync(string guestId, string roomId, DateTime checkInDate, DateTime checkOutDate, string? specialRequests, string? accountId)
     {
         using (var connection = GetConnection())
         {
@@ -176,6 +176,8 @@ public class DataAccess : IDataAccess
             parameters.Add("@p_check_in_date", checkInDate);
             parameters.Add("@p_check_out_date", checkOutDate);
             parameters.Add("@p_special_requests", specialRequests);
+            // pass account id who created the booking (nullable)
+            parameters.Add("@p_account_id", accountId);
             parameters.Add("@p_booking_id", dbType: System.Data.DbType.String, size: 36, direction: System.Data.ParameterDirection.Output);
             parameters.Add("@p_booking_reference", dbType: System.Data.DbType.String, size: 50, direction: System.Data.ParameterDirection.Output);
 
@@ -189,28 +191,38 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public async Task<int> UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
+    public async Task<UpdateBookingResult> UpdateBookingAsync(string bookingId, UpdateBookingRequest request)
     {
-        int rows = 0;
         using (var connection = GetConnection())
         {
-            rows = await connection.ExecuteAsync(
-                "uspUpdateBookingFully", new
-                {
-                    p_booking_id = bookingId,
-                    p_guest_id = request.Guest_Id,
-                    p_room_id = request.Room_Id,
-                    p_check_in_date = request.Check_In_Date,
-                    p_check_out_date = request.Check_Out_Date,
-                    p_special_requests = request.Special_Requests,
-                    p_deposit_paid = request.Deposit_Paid,
-                    p_total_price = request.Total_Price,
-                    p_status = request.Status
-                },
+            var parameters = new DynamicParameters();
+            parameters.Add("p_booking_id", bookingId);
+            parameters.Add("p_room_id", request.Room_Id);
+            parameters.Add("p_check_in_date", request.Check_In_Date);
+            parameters.Add("p_check_out_date", request.Check_Out_Date);
+            parameters.Add("p_special_requests", request.Special_Requests);
+            parameters.Add("p_deposit_paid", request.Deposit_Paid);
+            parameters.Add("p_total_price", request.Total_Price);
+            parameters.Add("p_status", request.Status);
+
+            parameters.Add("o_return_code", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
+            parameters.Add("o_return_message", dbType: System.Data.DbType.String, size: 255, direction: System.Data.ParameterDirection.Output);
+
+            await connection.ExecuteAsync(
+                "uspUpdateBookingFully",
+                parameters,
                 commandType: System.Data.CommandType.StoredProcedure
             );
+
+            var code = parameters.Get<int>("o_return_code");
+            var message = parameters.Get<string>("o_return_message");
+
+            return new UpdateBookingResult
+            {
+                Code = (UpdateBookingResultCode)code,
+                Message = message ?? string.Empty
+            };
         }
-        return rows;
     }
 
     public async Task CancelBookingAsync(string bookingId)
@@ -245,27 +257,29 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public async Task CheckInGuestAsync(string bookingId, string roomId)
+    public async Task<int> CheckInGuestAsync(string bookingId, string roomId)
     {
         using (var connection = GetConnection())
         {
-            await connection.ExecuteAsync(
+            var rows = await connection.ExecuteAsync(
                 "uspCheckInGuest",
                 new { p_booking_id = bookingId, p_room_id = roomId },
                 commandType: System.Data.CommandType.StoredProcedure
             );
+            return rows;
         }
     }
 
-    public async Task CheckOutGuestAsync(string bookingId, string roomId)
+    public async Task<int> CheckOutGuestAsync(string bookingId, string roomId)
     {
         using (var connection = GetConnection())
         {
-            await connection.ExecuteAsync(
+            var rows = await connection.ExecuteAsync(
                 "uspCheckOutGuest",
                 new { p_booking_id = bookingId, p_room_id = roomId },
                 commandType: System.Data.CommandType.StoredProcedure
             );
+            return rows;
         }
     }
 
@@ -295,5 +309,116 @@ public class DataAccess : IDataAccess
         }
     }
 
-   
+    public async Task<(List<object> Bookings, int TotalRows)> SearchBookingsAsync(string? keyword, DateTime? date, int pageIndex, int pageSize, string? status, DateTime? fromDate, DateTime? toDate, DateTime? searchCheckInDate, DateTime? searchCheckOutDate, int? type)
+    {
+        using (var connection = GetConnection())
+        {
+            var parameters = new DynamicParameters();
+            parameters.Add("p_keyword", keyword);
+            parameters.Add("p_date", date);
+            parameters.Add("p_pageIndex", pageIndex);
+            parameters.Add("p_pageSize", pageSize);
+            parameters.Add("p_status", status);
+            parameters.Add("p_from_date", fromDate);
+            parameters.Add("p_to_date", toDate);
+            parameters.Add("p_search_check_in_date", searchCheckInDate);
+            parameters.Add("p_search_check_out_date", searchCheckOutDate);
+            parameters.Add("p_type", type);
+
+            using (var multi = await connection.QueryMultipleAsync(
+                "uspSearchBooking",
+                parameters,
+                commandType: System.Data.CommandType.StoredProcedure))
+            {
+                var bookings = (await multi.ReadAsync()).Select(r => (object)r).ToList();
+                int totalRows = 0;
+
+                if (bookings.Count > 0)
+                {
+                    var first = bookings.First();
+                    var dict = first as IDictionary<string, object>;
+                    if (dict != null && dict.ContainsKey("TotalRows"))
+                    {
+                        totalRows = Convert.ToInt32(dict["TotalRows"]);
+                    }
+                }
+
+                return (bookings, totalRows);
+            }
+        }
+    }
+
+    public async Task<int> BookingCheckInOutAsync(string bookingId, int type)
+    {
+        using (var connection = GetConnection())
+        {
+            var parameters = new DynamicParameters();
+            parameters.Add("p_booking_id", bookingId);
+            parameters.Add("p_type", type);
+
+            // Execute stored procedure; returns number of affected rows across statements
+            var rows = await connection.ExecuteAsync(
+                "uspBookingCheckInOut",
+                parameters,
+                commandType: System.Data.CommandType.StoredProcedure
+            );
+
+            return rows;
+        }
+    }
+
+    public async Task<Account?> GetAccountByUsernameAsync(string username)
+    {
+        using (var connection = GetConnection())
+        {
+            var account = await connection.QueryFirstOrDefaultAsync<Account>(
+                "SELECT * FROM accounts WHERE username = @Username",
+                new { Username = username }
+            );
+            return account;
+        }
+    }
+
+    public async Task<string> CreateAccountAsync(Account account)
+    {
+        using (var connection = GetConnection())
+        {
+            var parameters = new DynamicParameters();
+            parameters.Add("p_username", account.Username);
+            parameters.Add("p_password", account.Password); // assume hashed already
+            parameters.Add("p_name", account.Name);
+            parameters.Add("p_phone", account.Phone);
+            parameters.Add("p_role", account.Role);
+            parameters.Add("p_account_id", dbType: System.Data.DbType.String, size: 36, direction: System.Data.ParameterDirection.Output);
+
+            await connection.ExecuteAsync(
+                "uspCreateAccount",
+                parameters,
+                commandType: System.Data.CommandType.StoredProcedure
+            );
+
+            return parameters.Get<string>("p_account_id");
+        }
+    }
+
+    public async Task SaveRefreshTokenAsync(string accountId, string refreshToken, DateTime expires)
+    {
+        using (var connection = GetConnection())
+        {
+            var query = "UPDATE accounts SET refresh_token = @RefreshToken, refresh_token_expires = @Expires WHERE account_id = @AccountId";
+            await connection.ExecuteAsync(query, new { RefreshToken = refreshToken, Expires = expires, AccountId = accountId });
+        }
+    }
+
+    public async Task<Account?> GetAccountByRefreshTokenAsync(string refreshToken)
+    {
+        using (var connection = GetConnection())
+        {
+            var account = await connection.QueryFirstOrDefaultAsync<Account>(
+                "SELECT * FROM accounts WHERE refresh_token = @RefreshToken",
+                new { RefreshToken = refreshToken }
+            );
+            return account;
+        }
+    }
 }

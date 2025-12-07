@@ -75,8 +75,24 @@ public class BookingsController : ControllerBase
     {
         try
         {
-            await _bookingService.UpdateBookingAsync(bookingId, request);
-            return Ok(new ApiResponse { Success = true, Message = "Booking updated successfully" });
+            var result = await _bookingService.UpdateBookingAsync(bookingId, request);
+
+            if (result.Code == UpdateBookingResultCode.Success)
+                return Ok(new ApiResponse { Success = true, Message = result.Message });
+
+            if (result.Code == UpdateBookingResultCode.BookingNotFound)
+                return NotFound(new ApiResponse { Success = false, Message = result.Message });
+
+            if (result.Code == UpdateBookingResultCode.InvalidDateRange)
+                return BadRequest(new ApiResponse { Success = false, Message = result.Message });
+
+            if (result.Code == UpdateBookingResultCode.RoomConflict)
+                return Conflict(new ApiResponse { Success = false, Message = result.Message });
+
+            if (result.Code == UpdateBookingResultCode.InvalidStatus)
+                return BadRequest(new ApiResponse { Success = false, Message = result.Message });
+
+            return BadRequest(new ApiResponse { Success = false, Message = "Unknown error" });
         }
         catch (Exception ex)
         {
@@ -114,10 +130,30 @@ public class BookingsController : ControllerBase
             return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
         }
     }
-}
 
-public class DateRangeRequest
-{
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    [HttpPost("search")]
+    public async Task<ActionResult<ApiResponse<object>>> SearchBookings([FromBody] SearchBookingsRequest request)
+    {
+        try
+        {
+            var (bookings, total) = await _bookingService.SearchBookingsAsync(
+                request.Keyword,
+                request.Date,
+                request.PageIndex,
+                request.PageSize,
+                request.Status,
+                request.FromDate,
+                request.ToDate,
+                request.SearchCheckInDate,
+                request.SearchCheckOutDate,
+                request.Type);
+
+            return Ok(new ApiResponse<object> { Success = true, Data = new { Items = bookings, TotalRows = total } });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching bookings");
+            return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
+        }
+    }
 }

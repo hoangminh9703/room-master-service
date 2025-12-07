@@ -56,7 +56,7 @@ public class RoomsController : ControllerBase
     {
         try
         {
-            var rooms = await _roomService.GetAvailableRoomsAsync(request.CheckInDate, request.CheckOutDate, request.RoomTypeId);
+            var rooms = await _roomService.GetAvailableRoomsAsync(request.CheckInDate, request.CheckOutDate); 
             return Ok(new ApiResponse<object> { Success = true, Data = rooms });
         }
         catch (Exception ex)
@@ -97,14 +97,3 @@ public class RoomsController : ControllerBase
     }
 }
 
-public class AvailableRoomsRequest
-{
-    public DateTime CheckInDate { get; set; }
-    public DateTime CheckOutDate { get; set; }
-    public string? RoomTypeId { get; set; }
-}
-
-public class UpdateRoomStatusRequest
-{
-    public string Status { get; set; } = string.Empty;
-}

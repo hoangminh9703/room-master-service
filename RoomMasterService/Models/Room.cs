@@ -10,6 +10,7 @@ public class Room
     public string Status { get; set; } = "Available";
     public string? Features { get; set; }
     public decimal Price_Per_Night { get; set; }
+    public decimal Price_Per_Hour { get; set; } = 0; // new column mapped from DB
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

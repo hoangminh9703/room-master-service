@@ -2,6 +2,7 @@ namespace RoomMasterService.Services;
 
 public interface ICheckInOutService
 {
-    Task CheckInGuestAsync(string bookingId, string roomId);
-    Task CheckOutGuestAsync(string bookingId, string roomId);
+    Task<int> CheckInGuestAsync(string bookingId, string roomId);
+    Task<int> CheckOutGuestAsync(string bookingId, string roomId);
+    Task<int> BookingCheckInOutAsync(string bookingId, int type);
 }

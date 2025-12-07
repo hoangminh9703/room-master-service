@@ -22,9 +22,9 @@ public class RoomService : IRoomService
         return await _dataAccess.GetAllRoomsAsync();
     }
 
-    public async Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate, string? roomTypeId = null)
+    public async Task<List<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate)
     {
-        return await _dataAccess.GetAvailableRoomsAsync(checkInDate, checkOutDate, roomTypeId);
+        return await _dataAccess.GetAvailableRoomsAsync(checkInDate, checkOutDate);
     }
 
     public async Task<string> CreateRoomAsync(Room room)

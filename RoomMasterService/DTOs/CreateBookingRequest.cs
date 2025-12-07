@@ -7,4 +7,5 @@ public class CreateBookingRequest
     public DateTime CheckInDate { get; set; }
     public DateTime CheckOutDate { get; set; }
     public string? SpecialRequests { get; set; }
+    public string? AccountId { get; set; } // Optional: account creating the booking
 }
